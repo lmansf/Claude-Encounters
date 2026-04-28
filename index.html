@@ -258,10 +258,27 @@
         /* ── Misc ── */
         .hidden { display: none !important; }
         @media (max-width: 600px) {
-            .main { margin: 18px auto 40px; }
-            .card { padding: 22px 18px; }
+            .main { margin: 8px auto 24px; padding: 0 4vw; }
+            .card { padding: 14px 6px; border-radius: 10px; }
             .progress-step span { display: none; }
-            .header h1 { font-size: 1.1rem; }
+            .header h1 { font-size: 1rem; }
+            .btn-row { flex-direction: column; gap: 7px; }
+            .card-title { font-size: 1.05rem; }
+            .card-subtitle { font-size: 0.82rem; }
+            input[type="text"], select, textarea { font-size: 0.98rem; padding: 10px 8px; }
+            label { font-size: 0.85rem; }
+            .theme-card { padding: 12px 8px; }
+            .theme-statement { font-size: 0.91rem; }
+            .theme-rationale { font-size: 0.78rem; }
+            .outline-section-label { font-size: 0.8rem; }
+            .outline-body { font-size: 0.89rem; }
+            .script-meta-title { font-size: 1rem; }
+            .script-meta-theme { font-size: 0.8rem; }
+            .script-body { font-size: 0.91rem; }
+            .sources-label, .source-line { font-size: 0.75rem; }
+            .feedback-box { padding: 12px; }
+            .header { padding: 14px 10px; }
+            .progress-wrap { padding: 0 10px; }
         }
     </style>
 </head>
@@ -457,10 +474,17 @@
             <button class="btn btn-secondary" onclick="startOver()">
                 ← Start New Program
             </button>
+            <button class="btn btn-primary" id="pdfExportBtn" onclick="exportPDF()">
+                ⬇️ Download as PDF
+            </button>
         </div>
     </div>
 
+
 </div><!-- /.main -->
+
+<!-- jsPDF CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <!-- ═══════════════════════════════════════════ SCRIPT -->
 <script>
@@ -943,6 +967,67 @@ function startOver() {
     setProgress(1);
 }
 
+// PDF Export logic
+function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const margin = 32, lineHeight = 18, maxWidth = 530;
+    let y = margin;
+
+    // Title and theme
+    doc.setFontSize(18);
+    doc.text(`${state.topic} · ${state.length}`, margin, y);
+    y += lineHeight + 4;
+    doc.setFontSize(12);
+    doc.setTextColor(60, 100, 60);
+    doc.text(`"${state.selected.theme}"`, margin, y);
+    y += lineHeight + 6;
+    doc.setTextColor(0,0,0);
+
+    // Script body
+    const [scriptPart, sourcesPart] = state.script.split(/^## SOURCES/m);
+    doc.setFontSize(11);
+    const scriptLines = scriptPart.trim().split(/\n|\r/);
+    scriptLines.forEach(line => {
+        if (/^[A-Z][A-Z\s\-0-9]+$/.test(line.trim())) {
+            doc.setFont(undefined, 'bold');
+        } else if (/^\[.*\]$/.test(line.trim())) {
+            doc.setTextColor(60, 100, 60);
+            doc.setFont(undefined, 'italic');
+        } else {
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0,0,0);
+        }
+        const split = doc.splitTextToSize(line, maxWidth);
+        split.forEach(txt => {
+            doc.text(txt, margin, y);
+            y += lineHeight;
+            if (y > 800) { doc.addPage(); y = margin; }
+        });
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0,0,0);
+    });
+
+    // Sources
+    if (sourcesPart) {
+        y += lineHeight;
+        doc.setFont(undefined, 'bold');
+        doc.text('Sources', margin, y);
+        y += lineHeight;
+        doc.setFont(undefined, 'normal');
+        sourcesPart.trim().split(/\n|\r/).forEach(line => {
+            const txt = line.replace(/^[-*•]\s*/, '');
+            const split = doc.splitTextToSize(txt, maxWidth);
+            split.forEach(t => {
+                doc.text(t, margin, y);
+                y += lineHeight;
+                if (y > 800) { doc.addPage(); y = margin; }
+            });
+        });
+    }
+
+    doc.save(`${state.topic.replace(/[^a-z0-9]+/gi,'_') || 'program'}.pdf`);
+}
 </script>
 </body>
 </html>
