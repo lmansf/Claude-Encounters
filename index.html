@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interpretive Program Builder</title>
+    <style>
+        :root {
+            --primary: #2d6a4f;
+            --primary-light: #40916c;
+            --primary-dark: #1b4332;
+            --accent: #95d5b2;
+            --accent-light: #d8f3dc;
+            --text: #1a1a2e;
+            --text-muted: #556;
+            --bg: #f6fdf8;
+            --card-bg: #ffffff;
+            --border: #cce8d6;
+            --shadow: 0 4px 24px rgba(27, 67, 50, 0.08);
+            --shadow-md: 0 8px 32px rgba(27, 67, 50, 0.13);
+            --radius: 14px;
+            --radius-sm: 9px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            color: white;
+            padding: 22px 28px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .header-icon { font-size: 32px; flex-shrink: 0; }
+        .header h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+        .header p  { font-size: 0.82rem; opacity: 0.72; margin-top: 2px; }
+
+        /* ── Progress Bar ── */
+        .progress-wrap {
+            background: var(--primary);
+            padding: 0 28px;
+            display: flex;
+            align-items: stretch;
+        }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 13px 0;
+            color: rgba(255,255,255,0.45);
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            flex-shrink: 0;
+            transition: color 0.3s;
+        }
+        .progress-step.active { color: #fff; }
+        .progress-step.done   { color: var(--accent); }
+        .step-num {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.72rem; font-weight: 700;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .progress-step.active .step-num { background: #fff; border-color: #fff; color: var(--primary-dark); }
+        .progress-step.done   .step-num { background: var(--accent); border-color: var(--accent); color: var(--primary-dark); }
+        .progress-divider {
+            flex: 1; height: 1px;
+            background: rgba(255,255,255,0.18);
+            align-self: center;
+            margin: 0 10px;
+        }
+
+        /* ── Layout ── */
+        .main {
+            max-width: 760px;
+            margin: 36px auto 60px;
+            padding: 0 20px;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 34px;
+            border: 1px solid var(--border);
+        }
+        .card-title    { font-size: 1.25rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 5px; }
+        .card-subtitle { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 28px; line-height: 1.5; }
+
+        /* ── Forms ── */
+        .form-group { margin-bottom: 20px; }
+        label {
+            display: block; font-weight: 600;
+            font-size: 0.88rem; margin-bottom: 6px;
+            color: var(--primary-dark);
+        }
+        .label-hint { font-weight: 400; color: var(--text-muted); font-size: 0.8rem; }
+
+        input[type="text"], select, textarea {
+            width: 100%; padding: 11px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.93rem; font-family: inherit;
+            color: var(--text); background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        input[type="text"]:focus, select:focus, textarea:focus {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(64,145,108,0.12);
+        }
+        textarea { resize: vertical; min-height: 96px; }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 11px 22px; border-radius: var(--radius-sm);
+            font-size: 0.88rem; font-weight: 600;
+            cursor: pointer; border: none;
+            transition: all 0.18s; font-family: inherit;
+            white-space: nowrap;
+        }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+        .btn-primary  { background: var(--primary); color: #fff; }
+        .btn-primary:hover:not(:disabled)  { background: var(--primary-light); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+        .btn-secondary { background: #fff; color: var(--primary); border: 1.5px solid var(--border); }
+        .btn-secondary:hover:not(:disabled) { border-color: var(--primary-light); background: var(--accent-light); }
+        .btn-sm { padding: 7px 14px; font-size: 0.8rem; }
+        .btn-row { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; align-items: center; }
+
+        /* ── Theme Cards ── */
+        .theme-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+        .theme-card {
+            border: 2px solid var(--border); border-radius: var(--radius-sm);
+            padding: 18px 20px; cursor: pointer; transition: all 0.18s;
+        }
+        .theme-card:hover   { border-color: var(--primary-light); box-shadow: var(--shadow); }
+        .theme-card.selected { border-color: var(--primary); background: var(--accent-light); }
+        .theme-card-header { display: flex; align-items: flex-start; gap: 13px; }
+        .radio-dot {
+            width: 19px; height: 19px; border-radius: 50%;
+            border: 2px solid var(--border); flex-shrink: 0; margin-top: 3px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.18s;
+        }
+        .theme-card.selected .radio-dot { background: var(--primary); border-color: var(--primary); }
+        .radio-dot::after {
+            content: ''; width: 7px; height: 7px;
+            border-radius: 50%; background: #fff; opacity: 0; transition: opacity 0.18s;
+        }
+        .theme-card.selected .radio-dot::after { opacity: 1; }
+        .theme-badge {
+            font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--primary); background: var(--accent-light);
+            padding: 2px 8px; border-radius: 20px; display: inline-block; margin-bottom: 5px;
+        }
+        .theme-card.selected .theme-badge { background: rgba(255,255,255,0.6); }
+        .theme-statement { font-weight: 600; font-size: 0.97rem; color: var(--primary-dark); line-height: 1.45; margin-bottom: 5px; }
+        .theme-rationale  { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+
+        /* ── Outline ── */
+        .outline-section { margin-bottom: 22px; }
+        .outline-section-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.09em; color: var(--primary);
+            padding-bottom: 7px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+        }
+        .outline-body {
+            font-size: 0.91rem; line-height: 1.75; color: var(--text);
+            white-space: pre-wrap; word-break: break-word;
+        }
+
+        /* ── Script ── */
+        .script-header {
+            display: flex; justify-content: space-between;
+            align-items: flex-start; flex-wrap: wrap; gap: 12px;
+            margin-bottom: 28px;
+        }
+        .script-meta-title { font-size: 1.2rem; font-weight: 700; color: var(--primary-dark); }
+        .script-meta-theme { font-size: 0.85rem; color: var(--text-muted); margin-top: 3px; font-style: italic; }
+        .script-body {
+            font-size: 0.92rem; line-height: 1.85;
+            white-space: pre-wrap; word-break: break-word;
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+        .sources-section { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .sources-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.09em; color: var(--text-muted); margin-bottom: 10px;
+        }
+        .source-line {
+            font-size: 0.82rem; color: var(--text-muted);
+            padding: 5px 0; border-bottom: 1px solid var(--accent-light);
+            line-height: 1.4;
+        }
+
+        /* ── Feedback Box ── */
+        .feedback-box {
+            background: var(--accent-light); border-radius: var(--radius-sm);
+            padding: 20px; margin-top: 24px; border: 1px solid var(--border);
+        }
+        .feedback-box label { margin-bottom: 9px; }
+
+        /* ── Loading ── */
+        .loading-state {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 64px 24px; text-align: center;
+        }
+        .spinner {
+            width: 46px; height: 46px;
+            border: 3px solid var(--accent-light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+            margin-bottom: 22px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-title { font-size: 1rem; font-weight: 600; color: var(--primary-dark); margin-bottom: 5px; }
+        .loading-sub   { font-size: 0.83rem; color: var(--text-muted); }
+
+        /* ── Notices ── */
+        .error-box {
+            background: #fff5f5; border: 1px solid #f5c6c6;
+            border-radius: var(--radius-sm); padding: 13px 15px;
+            font-size: 0.86rem; color: #b91c1c; margin-bottom: 14px;
+        }
+        .config-banner {
+            background: #fffbeb; border: 1px solid #fcd34d;
+            border-radius: var(--radius-sm); padding: 13px 16px;
+            font-size: 0.83rem; color: #78350f; margin-bottom: 20px;
+        }
+        .config-banner strong { display: block; margin-bottom: 4px; font-size: 0.88rem; }
+        .config-banner code {
+            background: rgba(0,0,0,0.06); padding: 1px 5px;
+            border-radius: 4px; font-size: 0.82rem;
+        }
+
+        /* ── Divider ── */
+        hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+        /* ── Misc ── */
+        .hidden { display: none !important; }
+        @media (max-width: 600px) {
+            .main { margin: 18px auto 40px; }
+            .card { padding: 22px 18px; }
+            .progress-step span { display: none; }
+            .header h1 { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ HEADER -->
+<div class="header">
+    <div class="header-icon">🌿</div>
+    <div>
+        <h1>Interpretive Program Builder</h1>
+        <p>NAI-aligned educational program development · Powered by AI</p>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ PROGRESS -->
+<div class="progress-wrap" id="progressWrap">
+    <div class="progress-step active" data-step="1">
+        <div class="step-num">1</div><span>Program Details</span>
+    </div>
+    <div class="progress-divider"></div>
+    <div class="progress-step" data-step="2">
+        <div class="step-num">2</div><span>Choose Theme</span>
+    </div>
+    <div class="progress-divider"></div>
+    <div class="progress-step" data-step="3">
+        <div class="step-num">3</div><span>Review Outline</span>
+    </div>
+    <div class="progress-divider"></div>
+    <div class="progress-step" data-step="4">
+        <div class="step-num">4</div><span>Final Script</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ MAIN -->
+<div class="main">
+
+    <!-- Config warning (shown when placeholders are still in place) -->
+    <div class="config-banner hidden" id="configBanner">
+        <strong>⚠️ Configuration needed before this page will work</strong>
+        Open <code>index.html</code> and replace <code>YOUR_MODEL_HERE</code> in the
+        <code>CONFIG</code> object with your Claude model string (e.g. <code>claude-sonnet-4-6</code>).
+        Then set <code>ANTHROPIC_API_KEY</code> as an Environment Variable in your Vercel project settings.
+    </div>
+
+    <!-- ─── STEP 1: Input ─── -->
+    <div id="step1" class="card">
+        <div class="card-title">Design Your Program</div>
+        <div class="card-subtitle">Enter your topic and program details. The AI will suggest three interpretive themes to choose from.</div>
+
+        <div class="form-group">
+            <label for="topicInput">
+                Animal or Topic
+                <span class="label-hint"> — e.g., "Eastern Indigo Snake", "Migratory Birds", "Longleaf Pine Ecosystem"</span>
+            </label>
+            <input type="text" id="topicInput" placeholder="Enter your program topic…" />
+        </div>
+
+        <div class="form-group">
+            <label for="lengthInput">Program Length</label>
+            <select id="lengthInput">
+                <option value="">Select a length…</option>
+                <option value="15 minutes">15 minutes</option>
+                <option value="30 minutes">30 minutes</option>
+                <option value="45 minutes">45 minutes</option>
+                <option value="60 minutes">60 minutes</option>
+                <option value="90 minutes">90 minutes</option>
+                <option value="2 hours">2 hours</option>
+                <option value="Half day">Half day</option>
+                <option value="Full day">Full day</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="audienceInput">
+                Primary Audience
+                <span class="label-hint"> — optional, helps tailor the theme</span>
+            </label>
+            <select id="audienceInput">
+                <option value="general public">General public</option>
+                <option value="school-age children (K–5)">School-age children (K–5)</option>
+                <option value="middle school students">Middle school students</option>
+                <option value="high school students">High school students</option>
+                <option value="families with young children">Families with young children</option>
+                <option value="adult learners">Adult learners</option>
+                <option value="senior adults">Senior adults</option>
+                <option value="mixed ages">Mixed ages</option>
+            </select>
+        </div>
+
+        <div id="step1Error" class="error-box hidden"></div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="generateThemes()">
+                Generate Themes →
+            </button>
+        </div>
+    </div>
+
+    <!-- ─── STEP 2a: Loading Themes ─── -->
+    <div id="step2loading" class="card hidden">
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <div class="loading-title">Researching your topic…</div>
+            <div class="loading-sub">Generating three interpretive theme options</div>
+        </div>
+    </div>
+
+    <!-- ─── STEP 2b: Theme Selection ─── -->
+    <div id="step2" class="card hidden">
+        <div class="card-title">Choose a Theme</div>
+        <div class="card-subtitle">
+            A theme is the "so what" — a complete, provokable sentence your audience carries away long after the program ends.
+            Select the option that resonates most, or generate a new set.
+        </div>
+
+        <div id="themeCards" class="theme-cards"></div>
+        <div id="step2Error" class="error-box hidden"></div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" id="outlineBtn" onclick="generateOutline()" disabled>
+                Build Outline →
+            </button>
+            <button class="btn btn-secondary" onclick="generateThemes(true)">
+                ↺ &nbsp;Try New Themes
+            </button>
+        </div>
+    </div>
+
+    <!-- ─── STEP 3a: Loading Outline ─── -->
+    <div id="step3loading" class="card hidden">
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <div class="loading-title">Building your outline…</div>
+            <div class="loading-sub">Structuring a program using NAI interpretive principles</div>
+        </div>
+    </div>
+
+    <!-- ─── STEP 3b: Outline Review ─── -->
+    <div id="step3" class="card hidden">
+        <div class="card-title">Review Your Outline</div>
+        <div class="card-subtitle">
+            Review the program structure below. Approve it to proceed to the full script,
+            or enter feedback and request a revision.
+        </div>
+
+        <div id="outlineDisplay"></div>
+
+        <div class="feedback-box">
+            <label for="feedbackInput">
+                Feedback
+                <span class="label-hint"> — optional. Leave blank to approve as-is.</span>
+            </label>
+            <textarea id="feedbackInput"
+                placeholder="e.g., Make the opening more dramatic. Add a citizen science call to action. Replace subtheme 2 with something about habitat loss and recovery…"></textarea>
+        </div>
+
+        <div id="step3Error" class="error-box hidden"></div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="writeScript()">
+                Approve &amp; Write Script →
+            </button>
+            <button class="btn btn-secondary" onclick="reviseOutline()">
+                ↺ &nbsp;Revise Outline
+            </button>
+        </div>
+    </div>
+
+    <!-- ─── STEP 4a: Loading Script ─── -->
+    <div id="step4loading" class="card hidden">
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <div class="loading-title">Writing your program script…</div>
+            <div class="loading-sub">This may take a moment — sourcing facts and crafting your full program</div>
+        </div>
+    </div>
+
+    <!-- ─── STEP 4b: Final Script ─── -->
+    <div id="step4" class="card hidden">
+        <div class="script-header">
+            <div>
+                <div class="script-meta-title" id="scriptTitle"></div>
+                <div class="script-meta-theme" id="scriptTheme"></div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="copyScript()">⎘ &nbsp;Copy Script</button>
+        </div>
+
+        <div id="scriptDisplay"></div>
+
+        <hr>
+
+        <div class="btn-row">
+            <button class="btn btn-secondary" onclick="startOver()">
+                ← Start New Program
+            </button>
+        </div>
+    </div>
+
+</div><!-- /.main -->
+
+<!-- ═══════════════════════════════════════════ SCRIPT -->
+<script>
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  CONFIGURATION                                               ║
+// ║                                                              ║
+// ║  API_ENDPOINT: Points to the Vercel serverless proxy.        ║
+// ║    '/api/chat' routes to api/chat.js in this project.        ║
+// ║    The proxy holds your API key securely server-side.        ║
+// ║                                                              ║
+// ║  MODEL: The Claude model string to use.                      ║
+// ║    Replace with: 'claude-opus-4-6' or 'claude-sonnet-4-6'   ║
+// ║                                                              ║
+// ║  API_KEY: Leave empty — the proxy handles authentication.    ║
+// ║    Set ANTHROPIC_API_KEY in your Vercel project settings.    ║
+// ╚══════════════════════════════════════════════════════════════╝
+const CONFIG = {
+    API_ENDPOINT : '/api/chat',
+    MODEL        : 'claude-sonnet-4-6',
+    API_KEY      : '',
+
+    MAX_TOKENS_THEMES  : 1400,
+    MAX_TOKENS_OUTLINE : 2200,
+    MAX_TOKENS_SCRIPT  : 7000,
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  NOTEBOOK CONTEXT
+//  The full interpretive framework embedded as the system prompt.
+// ─────────────────────────────────────────────────────────────────
+const NOTEBOOK = `
+You are an expert interpretive program developer trained in the National Association for Interpretation (NAI) Certified Interpretive Guide framework.
+
+ORGANIZATION MISSION:
+Rescue, rehabilitate, and care for animals; create exceptional personalized experiences that connect people with wildlife and each other in fun, immersive ways.
+
+─── CORE PRINCIPLES (Tilden / Beck & Cable) ───
+1. Interpretation must relate to the visitor's own personality or experience — or it will be sterile.
+2. Interpretation is revelation, not mere information transfer. It goes beyond facts to uncover deeper meaning and truth.
+3. The interpretive presentation should be designed as a story that informs, entertains, and enlightens.
+4. The chief aim of interpretation is not instruction, but provocation — sparking curiosity and independent thought.
+5. Interpretation should present a whole rather than a part, and address the whole person.
+6. Different audiences (children, seniors, uniform groups) require fundamentally different approaches.
+7. Every subject has a history — bring the past alive to make the present meaningful and the future more hopeful.
+8. Focused, well-researched interpretation is more powerful than a longer discourse. Prioritize quality and accuracy.
+9. Passion is the essential ingredient — passion for the resource and for the people you serve.
+
+─── WHAT AUDIENCES LOVE ───
+• What is personally relevant to them
+• Good stories with real characters
+• Inspiring examples of collective problem-solving
+• Surprising facts in relatable terms ("the equivalent of 4 million bathtubs of water per hour")
+• Things that provoke emotional responses — beautiful, scary, joyful, heartbreaking, unexpected
+• Unusual facts that challenge assumptions
+
+─── WHAT AUDIENCES TUNE OUT ───
+• Raw scientific data without meaning or context
+• Doom and gloom with no path forward
+• Generic facts they've heard at every other site ("65 million years ago this area was covered by a vast inland sea")
+
+─── THEME GUIDELINES ───
+• A theme is a complete, provokable sentence — not a topic word or phrase.
+• It is the "so what" — the central idea carried away long after the program ends.
+• A strong theme reveals meaning, not just information.
+• It does not have to be stated aloud, but must be clearly felt throughout.
+• Weak:  "Indigo Snakes" (topic, not theme)
+• Strong: "The survival of the indigo snake is inseparable from the health of the wild lands that sustain us all."
+
+─── MASLOW'S HIERARCHY ───
+Visitors cannot engage at higher levels until lower needs are met. Address physiological comfort and psychological safety first. Build belonging and esteem through inclusive, participatory design. Aim for self-actualization — awe, provocation, deep personal meaning — as the program's highest aspiration.
+
+─── EXPERIENCE ECONOMY (Pine & Gilmore) ───
+• Theme the experience consistently across all touchpoints.
+• Harmonize positive cues — cleanliness, hospitality, signage — with the theme.
+• Eliminate negatives: confusion, discomfort, contradictory messages.
+• Provide memorabilia: a fact, an action, an image, something tangible to take away.
+• Engage the senses throughout.
+
+─── VISITOR EXPERIENCE STAGES ───
+1. Decision — Why visit? Website, endorsements, social media.
+2. Entry — First impression is everything. Who greets? Theme introduced.
+3. Connections — The heart of the visit: programs, activities, exhibits. All themed.
+4. Exit — Reinforce the theme. Offer takeaways. Enhance meaning.
+5. Commitment — Positive memories → behavioral change → personal endorsements → new visitors.
+
+─── AUDIENCE IDENTITY TYPES (Falk) ───
+• Explorers: curiosity-driven, self-directed; reward with depth and discovery.
+• Facilitators: there for someone else; give them tools to be the guide.
+• Professionals/Hobbyists: bring expertise; acknowledge it, offer depth and behind-the-scenes access.
+• Experience Seekers: want the iconic moment; lead with grandeur, follow with meaning.
+• Rechargers: seek quiet and restoration; interpret gently or not at all.
+
+─── SENSORY ENGAGEMENT ───
+Weave at least one sensory moment (touch, sound, scent, taste, or heightened vision) into every program. Sensory experience deepens emotional memory and makes the abstract concrete.
+
+─── PROGRAM STRUCTURE ───
+Introduction:  Hook immediately. Connect to the visitor's life. Introduce the theme implicitly (do not state it outright).
+Body:          3–4 subthemes, each a complete sentence, each supported by a story, activity, or sensory moment.
+Conclusion:    Return to the opening. Reinforce the theme. Leave with something to think, feel, or do. Invite commitment or action.
+
+─── MEASURABLE OBJECTIVES ───
+Format: "X% of participants will [specific, observable action] by the end of the program."
+`.trim();
+
+// ─────────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────────
+let state = {
+    topic    : '',
+    length   : '',
+    audience : '',
+    themes   : [],
+    selected : null,   // { title, theme, rationale }
+    outline  : '',
+    script   : '',
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+    if (CONFIG.MODEL === 'YOUR_MODEL_HERE') {
+        document.getElementById('configBanner').classList.remove('hidden');
+    }
+    setProgress(1);
+});
+
+// ─────────────────────────────────────────────────────────────────
+//  API HELPER
+// ─────────────────────────────────────────────────────────────────
+async function callAI(userMessage, maxTokens) {
+    const headers = { 'Content-Type': 'application/json' };
+
+    if (CONFIG.API_KEY && CONFIG.API_KEY !== 'YOUR_API_KEY_HERE') {
+        headers['x-api-key']          = CONFIG.API_KEY;
+        headers['anthropic-version']   = '2023-06-01';
+        // Required header for direct browser access to Anthropic API
+        headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    }
+
+    const res = await fetch(CONFIG.API_ENDPOINT, {
+        method  : 'POST',
+        headers,
+        body    : JSON.stringify({
+            model      : CONFIG.MODEL,
+            max_tokens : maxTokens,
+            system     : NOTEBOOK,
+            messages   : [{ role: 'user', content: userMessage }],
+        }),
+    });
+
+    if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`API ${res.status}: ${txt.slice(0, 300)}`);
+    }
+
+    const data = await res.json();
+
+    // Handle Anthropic format, OpenAI format, or plain {text}
+    if (data.content?.[0]?.text)                     return data.content[0].text;
+    if (data.choices?.[0]?.message?.content)         return data.choices[0].message.content;
+    if (data.choices?.[0]?.text)                     return data.choices[0].text;
+    if (typeof data.text === 'string')               return data.text;
+    return JSON.stringify(data);
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  STEP 1 → 2  Generate Themes
+// ─────────────────────────────────────────────────────────────────
+async function generateThemes(isRetry = false) {
+    const topic    = document.getElementById('topicInput').value.trim();
+    const length   = document.getElementById('lengthInput').value;
+    const audience = document.getElementById('audienceInput').value;
+    const errEl    = document.getElementById('step1Error');
+
+    if (!topic)  { showError(errEl, 'Please enter an animal or topic.'); return; }
+    if (!length) { showError(errEl, 'Please select a program length.');  return; }
+    errEl.classList.add('hidden');
+
+    state.topic    = topic;
+    state.length   = length;
+    state.audience = audience;
+
+    show('step2loading');
+    setProgress(2);
+
+    const prompt = `
+Generate exactly 3 distinct interpretive theme options for the following program:
+
+Topic: ${topic}
+Program length: ${length}
+Primary audience: ${audience}
+
+Each theme must be:
+- A single, complete, compelling sentence — NOT a topic word or phrase
+- Provocative and meaning-driven, not merely factual
+- Clearly connected to the visitor's life and experience
+- Distinct in angle or emphasis from the other two options
+- Aligned with the organization's mission to connect people with wildlife in fun, immersive ways
+
+Return ONLY a valid JSON array — no markdown fences, no explanation, no extra text:
+[
+  {
+    "title": "Short label (3–5 words)",
+    "theme": "The complete theme sentence.",
+    "rationale": "One sentence explaining what this theme will provoke or reveal in visitors."
+  }
+]
+`.trim();
+
+    try {
+        const raw     = await callAI(prompt, CONFIG.MAX_TOKENS_THEMES);
+        const cleaned = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        state.themes  = JSON.parse(cleaned);
+        renderThemes(state.themes);
+        show('step2');
+    } catch (e) {
+        show(isRetry ? 'step2' : 'step1');
+        setProgress(isRetry ? 2 : 1);
+        const el = isRetry ? document.getElementById('step2Error') : errEl;
+        showError(el, `Could not generate themes: ${e.message}`);
+    }
+}
+
+function renderThemes(themes) {
+    const container = document.getElementById('themeCards');
+    container.innerHTML = '';
+    state.selected = null;
+    document.getElementById('outlineBtn').disabled = true;
+    document.getElementById('step2Error').classList.add('hidden');
+
+    themes.forEach((t, i) => {
+        const card = document.createElement('div');
+        card.className = 'theme-card';
+        card.innerHTML = `
+            <div class="theme-card-header">
+                <div class="radio-dot"></div>
+                <div style="flex:1">
+                    <div class="theme-badge">Option ${i + 1} &nbsp;·&nbsp; ${escHtml(t.title)}</div>
+                    <div class="theme-statement">"${escHtml(t.theme)}"</div>
+                    <div class="theme-rationale">${escHtml(t.rationale)}</div>
+                </div>
+            </div>`;
+        card.addEventListener('click', () => {
+            document.querySelectorAll('.theme-card').forEach((c, j) =>
+                c.classList.toggle('selected', j === i));
+            state.selected = themes[i];
+            document.getElementById('outlineBtn').disabled = false;
+        });
+        container.appendChild(card);
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  STEP 2 → 3  Generate Outline
+// ─────────────────────────────────────────────────────────────────
+async function generateOutline() {
+    if (!state.selected) return;
+    show('step3loading');
+    setProgress(3);
+
+    const prompt = `
+Create a detailed interpretive program outline with the following parameters:
+
+Topic: ${state.topic}
+Program length: ${state.length}
+Primary audience: ${state.audience}
+Selected theme: "${state.selected.theme}"
+
+Structure your response with these exact section headers (use ## before each):
+
+## OBJECTIVE
+One measurable objective in this format: "X% of participants will [specific, observable action] by the end of the program."
+
+## MATERIALS NEEDED
+Bulleted list of all props, specimens, technology, handouts, or support items required.
+
+## INTRODUCTION
+Full introduction text (2–3 paragraphs). Hook the audience immediately. Relate the topic to their lives. Introduce the theme implicitly — do not state it directly.
+
+## SUBTHEMES
+3–4 subthemes. For each: write it as a complete sentence, then add 2–3 sentences describing the supporting story, activity, or sensory element that will bring it to life.
+
+## CONCLUSION
+Full conclusion text (1–2 paragraphs). Circle back to the opening hook. Reinforce the theme. End with something to think, feel, or do. Include a specific call to action.
+
+## TIMING
+Rough time breakdown across the program sections.
+`.trim();
+
+    try {
+        state.outline = await callAI(prompt, CONFIG.MAX_TOKENS_OUTLINE);
+        renderOutline(state.outline);
+        show('step3');
+    } catch (e) {
+        show('step2');
+        setProgress(2);
+        showError(document.getElementById('step2Error'), `Could not build outline: ${e.message}`);
+    }
+}
+
+async function reviseOutline() {
+    const feedback = document.getElementById('feedbackInput').value.trim();
+    if (!feedback) return;
+
+    show('step3loading');
+    setProgress(3);
+
+    const prompt = `
+You previously wrote this interpretive program outline:
+
+---
+${state.outline}
+---
+
+The program developer has provided the following revision feedback:
+"${feedback}"
+
+Please revise the outline accordingly while:
+- Maintaining all the same ## section headers
+- Keeping alignment with the NAI interpretive principles
+- Staying true to the selected theme: "${state.selected.theme}"
+
+Return the complete revised outline with the same section structure.
+`.trim();
+
+    try {
+        state.outline = await callAI(prompt, CONFIG.MAX_TOKENS_OUTLINE);
+        document.getElementById('feedbackInput').value = '';
+        document.getElementById('step3Error').classList.add('hidden');
+        renderOutline(state.outline);
+        show('step3');
+    } catch (e) {
+        show('step3');
+        showError(document.getElementById('step3Error'), `Could not revise outline: ${e.message}`);
+    }
+}
+
+function renderOutline(md) {
+    const container = document.getElementById('outlineDisplay');
+    const sections  = md.split(/^## /m).filter(s => s.trim());
+    container.innerHTML = sections.map(sec => {
+        const lines   = sec.trim().split('\n');
+        const title   = lines[0].trim();
+        const content = lines.slice(1).join('\n').trim();
+        return `<div class="outline-section">
+                    <div class="outline-section-label">${escHtml(title)}</div>
+                    <div class="outline-body">${escHtml(content)}</div>
+                </div>`;
+    }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  STEP 3 → 4  Write Script
+// ─────────────────────────────────────────────────────────────────
+async function writeScript() {
+    const feedback = document.getElementById('feedbackInput').value.trim();
+    show('step4loading');
+    setProgress(4);
+
+    const extraNote = feedback
+        ? `\n\nAdditional developer notes: "${feedback}"`
+        : '';
+
+    const prompt = `
+Write a complete, ready-to-deliver interpretive program script based on the following:
+
+Topic: ${state.topic}
+Program length: ${state.length}
+Primary audience: ${state.audience}
+Theme: "${state.selected.theme}"
+
+Approved outline:
+---
+${state.outline}
+---
+${extraNote}
+
+REQUIREMENTS:
+1. Write the full script in natural, spoken language — exactly as an interpreter would deliver it aloud.
+2. Include [STAGE DIRECTIONS] in square brackets for: pauses, physical activities, object introductions, sensory moments, audience questions, transitions, and timing cues.
+3. Label each section with a clear header in ALL CAPS: INTRODUCTION, SUBTHEME 1 — [title], etc., CONCLUSION.
+4. Every factual claim must be specific and accurate. List each source after the script.
+5. Use relatable analogies and surprising comparisons to make facts memorable and human-scale.
+6. Include at least one hands-on sensory engagement moment (touch, sound, scent, taste, or focused observation).
+7. End with a specific, achievable call to action tied to the organization's mission.
+8. Tone: warm, curious, passionate, conversational — never lecturing or preachy.
+9. Keep the pacing appropriate for a ${state.length} program.
+
+FORMAT:
+- Section headers in ALL CAPS
+- Stage directions in [square brackets]
+- Spoken script as regular text
+- End with a section headed exactly: ## SOURCES
+  List each source on its own line as: Author (if known). Title. Publication / URL.
+`.trim();
+
+    try {
+        state.script = await callAI(prompt, CONFIG.MAX_TOKENS_SCRIPT);
+        renderScript(state.script);
+        show('step4');
+    } catch (e) {
+        show('step3');
+        setProgress(3);
+        showError(document.getElementById('step3Error'), `Could not write script: ${e.message}`);
+    }
+}
+
+function renderScript(raw) {
+    const [scriptPart, sourcesPart] = raw.split(/^## SOURCES/m);
+
+    document.getElementById('scriptTitle').textContent =
+        `${state.topic}  ·  ${state.length}`;
+    document.getElementById('scriptTheme').textContent =
+        `"${state.selected.theme}"`;
+
+    let html = `<div class="script-body">${escHtml(scriptPart.trim())}</div>`;
+
+    if (sourcesPart?.trim()) {
+        const lines = sourcesPart.trim().split('\n').filter(l => l.trim());
+        html += `<div class="sources-section">
+                    <div class="sources-label">Sources</div>
+                    ${lines.map(l => `<div class="source-line">${escHtml(l.replace(/^[-*•]\s*/, ''))}</div>`).join('')}
+                 </div>`;
+    }
+
+    document.getElementById('scriptDisplay').innerHTML = html;
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  UTILITIES
+// ─────────────────────────────────────────────────────────────────
+const ALL_STEPS = ['step1','step2loading','step2','step3loading','step3','step4loading','step4'];
+
+function show(id) {
+    ALL_STEPS.forEach(s => {
+        const el = document.getElementById(s);
+        if (el) el.classList.toggle('hidden', s !== id);
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setProgress(active) {
+    document.querySelectorAll('.progress-step').forEach(el => {
+        const n = parseInt(el.dataset.step);
+        el.classList.toggle('active', n === active);
+        el.classList.toggle('done',   n < active);
+    });
+}
+
+function showError(el, msg) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+}
+
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+        .replace(/\n/g,'<br>');
+}
+
+function copyScript() {
+    navigator.clipboard.writeText(state.script).then(() => {
+        const btn = document.querySelector('[onclick="copyScript()"]');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✓ &nbsp;Copied!';
+        setTimeout(() => btn.innerHTML = orig, 2000);
+    });
+}
+
+function startOver() {
+    state = { topic:'', length:'', audience:'', themes:[], selected:null, outline:'', script:'' };
+    ['topicInput','feedbackInput'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('lengthInput').value = '';
+    ['step1Error','step2Error','step3Error'].forEach(id =>
+        document.getElementById(id).classList.add('hidden'));
+    show('step1');
+    setProgress(1);
+}
+
+</script>
+</body>
+</html>
